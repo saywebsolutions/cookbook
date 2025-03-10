@@ -81,10 +81,6 @@ class FixInstructionsFilter extends AbstractJSONFilter {
 			$instructions = $this->flattenItemList($instructions);
 		} else {
             $instructions = $this->processInstructions($instructions);
-//			throw new InvalidRecipeException(json_encode($newInstructions));
-//			ksort($newInstructions);
-//			$instructions = array_merge([], ...$newInstructions);
-//            $instructions = $newInstructions;
 		}
 
 		$instructions = array_map(function ($x) {
@@ -133,7 +129,6 @@ class FixInstructionsFilter extends AbstractJSONFilter {
 				continue;
 			}
 
-            $this->logger->error('test');
 			throw new InvalidRecipeException($this->l->t('Cannot parse recipe: Unknown object found during flattening of instructions.'));
 		}
 
@@ -158,7 +153,6 @@ class FixInstructionsFilter extends AbstractJSONFilter {
 			return $this->flattenItemList($item);
 		}
 
-        $this->logger->error('test');
 		throw new InvalidRecipeException($this->l->t('Cannot parse recipe: Unknown object found during flattening of instructions.'));
 	}
 
@@ -237,7 +231,7 @@ class FixInstructionsFilter extends AbstractJSONFilter {
                 // Recursively process nested arrays
                 $result = array_merge($result, $this->processInstructions($value, $depth + 1));
             } else {
-                //TODO - It may be better discard unknown entities and allow import
+                //TODO - It may be better to discard unknown entities and allow import
                 // instead of halting process completely
                 throw new InvalidRecipeException($this->l->t('Cannot parse recipe: Unknown object found during flattening of instructions.'));
             }
