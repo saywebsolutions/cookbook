@@ -80,34 +80,11 @@ class FixInstructionsFilter extends AbstractJSONFilter {
 			// We have a single ItemList as instructions.
 			$instructions = $this->flattenItemList($instructions);
 		} else {
-			// We got an array of whatever type
-			foreach ($instructions as $key => $value) {
-				if (is_string($value)) {
-					$instructions[$key] = [$value];
-					continue;
-				}
-
-				if ($this->jsonService->isSchemaObject($value, 'ItemList', false)) {
-					$instructions[$key] = $this->flattenItemList($value);
-					continue;
-				}
-
-				if ($this->jsonService->isSchemaObject($value, 'HowToStep', false)) {
-					$instructions[$key] = [$this->extractHowToStep($value)];
-					continue;
-				}
-
-				if ($this->jsonService->isSchemaObject($value, 'HowToSection', false)) {
-					$newInstructions = $this->flattenHowToSection($value);
-					$instructions[$key] = $newInstructions;
-					continue;
-				}
-
-				throw new InvalidRecipeException($this->l->t('Cannot parse recipe: Unknown object found during flattening of instructions.'));
-			}
-
-			ksort($instructions);
-			$instructions = array_merge([], ...$instructions);
+            $instructions = $this->processInstructions($instructions);
+//			throw new InvalidRecipeException(json_encode($newInstructions));
+//			ksort($newInstructions);
+//			$instructions = array_merge([], ...$newInstructions);
+//            $instructions = $newInstructions;
 		}
 
 		$instructions = array_map(function ($x) {
@@ -156,6 +133,7 @@ class FixInstructionsFilter extends AbstractJSONFilter {
 				continue;
 			}
 
+            $this->logger->error('test');
 			throw new InvalidRecipeException($this->l->t('Cannot parse recipe: Unknown object found during flattening of instructions.'));
 		}
 
@@ -180,6 +158,7 @@ class FixInstructionsFilter extends AbstractJSONFilter {
 			return $this->flattenItemList($item);
 		}
 
+        $this->logger->error('test');
 		throw new InvalidRecipeException($this->l->t('Cannot parse recipe: Unknown object found during flattening of instructions.'));
 	}
 
@@ -224,4 +203,47 @@ class FixInstructionsFilter extends AbstractJSONFilter {
 	private function extractHowToStep($item) {
 		return $item['text'];
 	}
+        
+    /**
+     * Recursively processes recipe instructions, handling nested arrays of any depth
+     * 
+     * @param array|string $instructions The instructions to process
+     * @param int $depth Current recursion depth (default: 0)
+     * @return array Flattened array of instruction strings
+     */
+    private function processInstructions($instructions, $depth = 0) {
+        $result = [];
+
+        if ($depth > 5) {
+            return $result;
+        }
+
+        // Base case: if instructions is a string, return it wrapped in an array
+        if (is_string($instructions)) {
+            return [$instructions];
+        }
+
+        // Process each item in the instructions array
+        foreach ($instructions as $value) {
+            if (is_string($value)) {
+                $result[] = $value;
+            } elseif ($this->jsonService->isSchemaObject($value, 'ItemList', false)) {
+                $result = array_merge($result, $this->flattenItemList($value));
+            } elseif ($this->jsonService->isSchemaObject($value, 'HowToStep', false)) {
+                $result[] = $this->extractHowToStep($value);
+            } elseif ($this->jsonService->isSchemaObject($value, 'HowToSection', false)) {
+                $result = array_merge($result, $this->flattenHowToSection($value));
+            } elseif (is_array($value)) {
+                // Recursively process nested arrays
+                $result = array_merge($result, $this->processInstructions($value, $depth + 1));
+            } else {
+                //TODO - It may be better discard unknown entities and allow import
+                // instead of halting process completely
+                throw new InvalidRecipeException($this->l->t('Cannot parse recipe: Unknown object found during flattening of instructions.'));
+            }
+        }
+
+        return $result;
+    }
+
 }
